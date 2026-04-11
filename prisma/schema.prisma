@@ -1,0 +1,444 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model mstbrand {
+  id        Int    @id @default(autoincrement())
+  brandCode String @unique
+  brandName String
+
+  taxes         comTaxTable[]
+  purchaseItems trnPurchaseItem[]
+  RateListItem  RateListItem[]
+  trnSalesItem  trnSalesItem[]
+}
+
+model mstQuality {
+  id          Int    @id @default(autoincrement())
+  qualityCode String @unique
+  qualityName String
+
+  taxes         comTaxTable[]
+  purchaseItems trnPurchaseItem[]
+  RateListItem  RateListItem[]
+  trnSalesItem  trnSalesItem[]
+}
+
+model mstType {
+  id            Int               @id @default(autoincrement())
+  typeCode      String            @unique
+  typeName      String
+  taxes         comTaxTable[]
+  purchaseItems trnPurchaseItem[]
+  RateListItem  RateListItem[]
+  trnSalesItem  trnSalesItem[]
+}
+
+model mstCategory {
+  id            Int               @id @default(autoincrement())
+  categoryCode  String            @unique
+  categoryName  String
+  taxes         comTaxTable[]
+  purchaseItems trnPurchaseItem[]
+  RateListItem  RateListItem[]
+  trnSalesItem  trnSalesItem[]
+}
+
+model mstColor {
+  id        Int    @id @default(autoincrement())
+  colorCode String
+  colorName String
+}
+
+model mstColorType {
+  id            Int    @id @default(autoincrement())
+  colorTypeCode String
+  colorTypeName String
+}
+
+model mstColorCompany {
+  id               Int    @id @default(autoincrement())
+  colorCompanyCode String
+  colorCompanyName String
+}
+
+model mstGlassQuality {
+  id               Int    @id @default(autoincrement())
+  glassQualityCode String
+  glassQualityName String
+}
+
+model mstGlassType {
+  id            Int    @id @default(autoincrement())
+  glassTypeCode String
+  glassTypeName String
+}
+
+model mstStickerType {
+  id              Int    @id @default(autoincrement())
+  stickerTypeCode String
+  stickerTypeName String
+}
+
+model mstBank {
+  id       Int    @id @default(autoincrement())
+  bankCode String
+  bankName String
+}
+
+model mstCustomer {
+  id              Int          @id @default(autoincrement())
+  customerCode    String       @unique
+  customerName    String
+  customerAddress String
+  city            String
+  state           String
+  mobileNumber    String
+  salesmanId      Int?
+  salesman        mstSalesman? @relation(fields: [salesmanId], references: [id])
+  openingBalance  Decimal      @db.Decimal(18, 2)
+  createdBy       String
+  gstNumber       String
+  aadharNumber    String       @default("")
+  panNumber       String       @default("")
+  bankName        String       @default("")
+  bankBranch      String       @default("")
+  accountNumber   String       @default("")
+  ifscCode        String       @default("")
+  status          String       @default("active")
+  createdAt       DateTime     @default(now())
+  RateList        RateList[]
+  trnSales        trnSales[]
+}
+
+model Counter {
+  id  String @id(map: "PK__Counter__3213E83F6110291C") @db.NVarChar(50)
+  seq Int    @default(0, map: "DF__Counter__seq__5FB337D6")
+}
+
+model mstSalesman {
+  id              Int           @id @default(autoincrement())
+  salesmanCode    String        @unique
+  salesmanName    String
+  salesmanAddress String
+  city            String
+  state           String
+  mobileNumber    String
+  aadharNumber    String        @default("")
+  panNumber       String        @default("")
+  bankName        String        @default("")
+  bankBranch      String        @default("")
+  accountNumber   String        @default("")
+  ifscCode        String        @default("")
+  status          String        @default("active")
+  createdAt       DateTime      @default(now())
+  mstCustomer     mstCustomer[]
+  trnSales        trnSales[]
+}
+
+model mstSupplier {
+  id              Int           @id @default(autoincrement())
+  supplierCode    String        @unique
+  supplierName    String
+  supplierAddress String
+  city            String
+  state           String
+  mobileNumber    String
+  openingBalance  String
+  createdBy       String
+  gstNumber       String
+  aadharNumber    String        @default("")
+  panNumber       String        @default("")
+  bankName        String        @default("")
+  bankBranch      String        @default("")
+  accountNumber   String        @default("")
+  ifscCode        String        @default("")
+  status          String        @default("active")
+  purchases       trnPurchase[]
+  createdAt       DateTime      @default(now())
+}
+
+model generalLedgers {
+  id             Int          @id @default(autoincrement())
+  ledgerCode     String
+  ledgerName     String
+  status         String
+  openingBalance String
+  printName      String       @default("")
+  ledgerP        Int
+  LedgerParent   ledgerParent @relation(fields: [ledgerP], references: [id])
+  createdAt      DateTime     @default(now())
+
+  paymentLedgers trnPayment[]     @relation("PaymentLedger")
+  receiptLedgers trnPaymentItem[] @relation("ReceiptLedger")
+}
+
+model ledgerParent {
+  id             Int              @id @default(autoincrement())
+  name           String
+  createdAt      DateTime         @default(now())
+  systemLedgerId String
+  systemLedger   mstSystemLedgers @relation(fields: [systemLedgerId], references: [id])
+  generalLedgers generalLedgers[]
+  expenses       mstExpenses[]
+  mstIncome      mstIncome[]
+}
+
+model trnPurchase {
+  id               Int               @id @default(autoincrement())
+  purchaseCode     String            @unique
+  purchaseDate     DateTime
+  supplierId       Int
+  supplier         mstSupplier       @relation(fields: [supplierId], references: [id])
+  gstNumber        String
+  mobileNumber     String
+  subTotal         Decimal           @db.Decimal(18, 2)
+  sgst             Decimal           @db.Decimal(18, 2)
+  cgst             Decimal           @db.Decimal(18, 2)
+  igst             Decimal           @db.Decimal(18, 2)
+  totalTax         Decimal           @db.Decimal(18, 2)
+  freight          Decimal           @db.Decimal(18, 2)
+  roundOff         Decimal           @db.Decimal(18, 2)
+  nettAmount       Decimal           @db.Decimal(18, 2)
+  purchaseCategory String?
+  remarks          String?
+  createdBy        String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  items            trnPurchaseItem[]
+}
+
+model trnPurchaseItem {
+  id             Int         @id @default(autoincrement())
+  purchaseId     Int
+  purchase       trnPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  brandId        Int
+  brand          mstbrand    @relation(fields: [brandId], references: [id])
+  categoryId     Int
+  category       mstCategory @relation(fields: [categoryId], references: [id])
+  typeId         Int
+  type           mstType     @relation(fields: [typeId], references: [id])
+  qualityId      Int
+  quality        mstQuality  @relation(fields: [qualityId], references: [id])
+  purchaseQty    Decimal     @db.Decimal(18, 2)
+  purchaseAmount Decimal     @db.Decimal(18, 2)
+  purchaseRate   Decimal     @db.Decimal(18, 2)
+  createdAt      DateTime    @default(now())
+}
+
+model RateList {
+  id         String      @id @default(cuid())
+  date       String
+  customerId Int         @unique
+  customer   mstCustomer @relation(fields: [customerId], references: [id])
+
+  columns RateListColumn[]
+  items   RateListItem[]
+}
+
+model RateListColumn {
+  id         String   @id @default(cuid())
+  rateListId String
+  rateList   RateList @relation(fields: [rateListId], references: [id], onDelete: Cascade)
+
+  taxId       String // references comTaxTable.taxId
+  columnIndex Int
+}
+
+model mstSystemLedgers {
+  id            String         @id @default(cuid())
+  rowId         String
+  sysLedgerCode String
+  sysLedgerName String
+  parentLedgers ledgerParent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model mstExpenses {
+  id            String       @id @default(cuid())
+  expenseCode   String
+  expenseName   String
+  parentGroupId Int
+  parentGroup   ledgerParent @relation(fields: [parentGroupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  paymentItems trnPaymentItem[]
+}
+
+model mstIncome {
+  id            String       @id @default(cuid())
+  incomeCode    String
+  incomeName    String
+  parentGroupId Int
+  parentGroup   ledgerParent @relation(fields: [parentGroupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  paymentItems trnPaymentItem[]
+}
+
+model RateListItem {
+  id         String   @id @default(cuid())
+  rateListId String
+  rateList   RateList @relation(fields: [rateListId], references: [id], onDelete: Cascade)
+
+  brandId    Int
+  categoryId Int
+  typeId     Int
+  qualityId  Int
+
+  freight  Decimal  @db.Decimal(18, 2)
+  labour   Decimal  @db.Decimal(18, 2)
+  packing  Decimal  @db.Decimal(18, 2)
+  margin   Decimal  @db.Decimal(18, 2)
+  wastage  Decimal  @db.Decimal(18, 2)
+  nettRate Decimal? @db.Decimal(18, 2)
+  total    Decimal? @db.Decimal(18, 2)
+
+  brand    mstbrand    @relation(fields: [brandId], references: [id])
+  category mstCategory @relation(fields: [categoryId], references: [id])
+  type     mstType     @relation(fields: [typeId], references: [id])
+  quality  mstQuality  @relation(fields: [qualityId], references: [id])
+
+  values RateListValue[]
+}
+
+model RateListValue {
+  id     String       @id @default(cuid())
+  itemId String
+  item   RateListItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  columnIndex Int
+  value       Decimal @db.Decimal(18, 2)
+}
+
+model comTaxTable {
+  taxId      String        @id @default(cuid())
+  comName    String        @unique
+  igst       Int
+  cgst       Int
+  sgst       Int
+  brands     mstbrand[]
+  qualities  mstQuality[]
+  categories mstCategory[]
+  types      mstType[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model mstSalesType {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  salesItems trnSalesItem[]
+}
+
+model trnSales {
+  id        Int      @id @default(autoincrement())
+  salesCode String   @unique
+  salesDate DateTime
+
+  customerId Int
+  customer   mstCustomer @relation(fields: [customerId], references: [id])
+
+  salesmanId Int?
+  salesman   mstSalesman? @relation(fields: [salesmanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  gstNumber    String
+  mobileNumber String
+
+  subTotal Decimal @db.Decimal(18, 2)
+  sgst     Decimal @db.Decimal(18, 2)
+  cgst     Decimal @db.Decimal(18, 2)
+  igst     Decimal @db.Decimal(18, 2)
+  totalTax Decimal @db.Decimal(18, 2)
+
+  freight    Decimal @db.Decimal(18, 2)
+  roundOff   Decimal @db.Decimal(18, 2)
+  nettAmount Decimal @db.Decimal(18, 2)
+
+  remarks   String?
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items trnSalesItem[]
+}
+
+model trnSalesItem {
+  id Int @id @default(autoincrement())
+
+  salesId Int
+  sales   trnSales @relation(fields: [salesId], references: [id], onDelete: Cascade)
+
+  salesTypeId Int
+  salesType   mstSalesType @relation(fields: [salesTypeId], references: [id])
+
+  brandId    Int?
+  categoryId Int?
+  typeId     Int?
+  qualityId  Int?
+
+  brand    mstbrand?    @relation(fields: [brandId], references: [id])
+  category mstCategory? @relation(fields: [categoryId], references: [id])
+  type     mstType?     @relation(fields: [typeId], references: [id])
+  quality  mstQuality?  @relation(fields: [qualityId], references: [id])
+
+  qty        Decimal @db.Decimal(18, 2)
+  mrp        Decimal @default(0) @db.Decimal(18, 2)
+  mrpDiff    Decimal @default(0) @db.Decimal(18, 2)
+  diffAmount Decimal @default(0) @db.Decimal(18, 2)
+  rate       Decimal @db.Decimal(18, 2)
+  amount     Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+}
+
+model trnPayment {
+  id          Int      @id @default(autoincrement())
+  paymentCode String   @unique
+  paymentDate DateTime
+
+  paymentMode     String // "CASH" | "BANK"
+  paymentLedgerId Int
+  paymentLedger   generalLedgers @relation("PaymentLedger", fields: [paymentLedgerId], references: [id])
+
+  totalAmount Decimal @db.Decimal(18, 2)
+  remarks     String?
+  createdBy   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items trnPaymentItem[]
+}
+
+model trnPaymentItem {
+  id        Int        @id @default(autoincrement())
+  paymentId Int
+  payment   trnPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  expenseId String
+  expense   mstExpenses @relation(fields: [expenseId], references: [id])
+
+  receiptLedgerId Int
+  receiptLedger   generalLedgers @relation("ReceiptLedger", fields: [receiptLedgerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  amount  Decimal @db.Decimal(18, 2)
+  remarks String?
+
+  createdAt   DateTime   @default(now())
+  mstIncome   mstIncome? @relation(fields: [mstIncomeId], references: [id])
+  mstIncomeId String?
+}

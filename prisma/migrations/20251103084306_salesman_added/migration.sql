@@ -1,0 +1,29 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- CreateTable
+CREATE TABLE [dbo].[mstSalesman] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [salesmanCode] NVARCHAR(1000) NOT NULL,
+    [salesmanName] NVARCHAR(1000) NOT NULL,
+    [salesmanAddress] NVARCHAR(1000) NOT NULL,
+    [city] NVARCHAR(1000) NOT NULL,
+    [state] NVARCHAR(1000) NOT NULL,
+    [mobileNumber] NVARCHAR(1000) NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [mstSalesman_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT [mstSalesman_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

@@ -1,0 +1,28 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- CreateTable
+CREATE TABLE [dbo].[taxTable] (
+    [taxId] NVARCHAR(1000) NOT NULL,
+    [name] NVARCHAR(1000) NOT NULL,
+    [igst] INT NOT NULL,
+    [cgst] INT NOT NULL,
+    [sgst] INT NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [taxTable_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [updatedAt] DATETIME2 NOT NULL,
+    CONSTRAINT [taxTable_pkey] PRIMARY KEY CLUSTERED ([taxId])
+);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

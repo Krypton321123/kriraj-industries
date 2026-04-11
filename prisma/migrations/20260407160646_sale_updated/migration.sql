@@ -1,0 +1,21 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[trnSalesItem] ADD [diffAmount] DECIMAL(18,2) NOT NULL CONSTRAINT [trnSalesItem_diffAmount_df] DEFAULT 0,
+[mrp] DECIMAL(18,2) NOT NULL CONSTRAINT [trnSalesItem_mrp_df] DEFAULT 0,
+[mrpDiff] DECIMAL(18,2) NOT NULL CONSTRAINT [trnSalesItem_mrpDiff_df] DEFAULT 0;
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

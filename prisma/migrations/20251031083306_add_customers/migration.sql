@@ -1,0 +1,32 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- CreateTable
+CREATE TABLE [dbo].[mstCustomer] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [customerCode] NVARCHAR(1000) NOT NULL,
+    [customerName] NVARCHAR(1000) NOT NULL,
+    [customerAddress] NVARCHAR(1000) NOT NULL,
+    [city] NVARCHAR(1000) NOT NULL,
+    [state] NVARCHAR(1000) NOT NULL,
+    [mobileNumber] NVARCHAR(1000) NOT NULL,
+    [openingBalance] DECIMAL(18,2) NOT NULL,
+    [createdBy] NVARCHAR(1000) NOT NULL,
+    [gstNumber] NVARCHAR(1000) NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [mstCustomer_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT [mstCustomer_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

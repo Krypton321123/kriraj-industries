@@ -1,0 +1,22 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[mstbrand] ADD [taxId] NVARCHAR(1000);
+
+-- AddForeignKey
+ALTER TABLE [dbo].[mstbrand] ADD CONSTRAINT [mstbrand_taxId_fkey] FOREIGN KEY ([taxId]) REFERENCES [dbo].[comTaxTable]([taxId]) ON DELETE SET NULL ON UPDATE CASCADE;
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

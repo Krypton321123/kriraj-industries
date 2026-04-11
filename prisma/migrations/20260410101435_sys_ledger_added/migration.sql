@@ -1,0 +1,25 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- CreateTable
+CREATE TABLE [dbo].[mstSystemLedgers] (
+    [id] NVARCHAR(1000) NOT NULL,
+    [rowId] NVARCHAR(1000) NOT NULL,
+    [sysLedgerCode] NVARCHAR(1000) NOT NULL,
+    [sysLedgerName] NVARCHAR(1000) NOT NULL,
+    CONSTRAINT [mstSystemLedgers_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH
