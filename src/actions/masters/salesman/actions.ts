@@ -106,7 +106,7 @@ export async function createSalesman(input: SalesmanInput) {
       return {
         success: false,
         error: "Validation failed",
-        issues: error
+        issues: error.issues
       };
     }
     return {
@@ -148,7 +148,7 @@ export async function updateSalesman(salesmanCode: string, input: SalesmanInput)
       return {
         success: false,
         error: "Validation failed",
-        issues: error
+        issues: error.issues
       };
     }
     return {

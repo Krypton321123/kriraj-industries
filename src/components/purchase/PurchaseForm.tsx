@@ -681,7 +681,7 @@ export default function PurchaseForm() {
     <FormView
       setViewMode={setViewMode}
       setPurchaseRecords={setPurchaseRecords}
-      suppliers={suppliers}
+      suppliers={suppliers as any}
     />
   ) : (
     <SearchView />

@@ -224,8 +224,12 @@ export default function Main({ initialSuppliers }: MainProps) {
                 toast.error(`${issue.field}: ${issue.message}`);
               });
             } else {
-              toast.error(result.error || "Failed to update supplier");
-            }
+  if ('issues' in result && result.issues) {
+    result.issues.forEach((issue: any) => {
+      toast.error(`${issue.field}: ${issue.message}`);
+    });
+  } 
+}
           }
         } else {
           const result = await createSupplier(dataToSubmit);
@@ -240,14 +244,12 @@ export default function Main({ initialSuppliers }: MainProps) {
             );
             resetForm();
           } else {
-            if ('issues' in result && result.issues) {
-              result.issues.forEach((issue: any) => {
-                toast.error(`${issue.field}: ${issue.message}`);
-              });
-            } else {
-              toast.error(result.error || "Failed to create supplier");
-            }
-          }
+  if ('issues' in result && result.issues) {
+    result.issues.forEach((issue: any) => {
+      toast.error(`${issue.field}: ${issue.message}`);
+    });
+  } 
+}
         }
       } catch (error) {
         toast.error("An unexpected error occurred");

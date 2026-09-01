@@ -51,8 +51,11 @@ export type Supplier = {
 
 type ActionResult<T = Supplier> =
   | { success: true; data: T }
-  | { success: false; error: string }
-  | { success: false; issues: Array<{ field: string; message: string }> };
+  | {
+      success: false;
+      error: string;
+      issues?: Array<{ field: string; message: string }>;
+    };
 
 async function getNextSupplierCode(): Promise<string> {
   const counterId = "SUPPLIER";
@@ -88,15 +91,16 @@ export async function createSupplier(
   try {
     const validation = supplierSchema.safeParse(data);
 
-    if (!validation.success) {
-      return {
-        success: false,
-        issues: validation.error.issues.map((issue) => ({
-          field: issue.path[0] as string,
-          message: issue.message,
-        })),
-      };
-    }
+if (!validation.success) {
+  return {
+    success: false,
+    error: "Validation failed",   // ← add this line
+    issues: validation.error.issues.map((issue) => ({
+      field: issue.path[0] as string,
+      message: issue.message,
+    })),
+  };
+}
 
     const supplierCode = await getNextSupplierCode();
 
@@ -145,15 +149,15 @@ export async function updateSupplier(
 ): Promise<ActionResult> {
   try {
     const validation = supplierSchema.safeParse(data);
-
-    if (!validation.success) {
-      return {
-        success: false,
-        issues: validation.error.issues.map((issue) => ({
-          field: issue.path[0] as string,
-          message: issue.message,
-        })),
-      };
+if (!validation.success) {
+  return {
+    success: false,
+    error: "Validation failed",   // ← add this line
+    issues: validation.error.issues.map((issue) => ({
+      field: issue.path[0] as string,
+      message: issue.message,
+    })),
+  };
     }
 
     const existingSupplier = await prisma.mstSupplier.findFirst({

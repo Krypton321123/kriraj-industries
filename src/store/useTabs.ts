@@ -26,11 +26,11 @@ export const useTabs = create<Store>()(
       tabs: [],
       activeTab: null,
 
-      openTab: (tab) => {
-        set((state) => {
+      openTab: (tab: any) => {
+        set((state: any) => {
           
           if (!tab.unique) {
-            const exists = state.tabs.find((t) => t.path === tab.path);
+            const exists = state.tabs.find((t: any) => t.path === tab.path);
             if (exists) {
               return { activeTab: exists.id };
             }

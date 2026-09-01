@@ -10,8 +10,10 @@ import TaxMasterPage from "@/app/(main)/home/tax/page";
 import Payments from "@/app/(main)/home/payment/page";
 import ReceivingPage from "@/app/(main)/home/receiving/page";
 
+type PageComponent = React.ComponentType<any>;
 
-export const pageRegistry = {
+
+export const pageRegistry: Record<string, PageComponent> = {
   "/home/customer": CustomersPage,
   "/home/ledger": LedgersPage,
   "/home/purchase": PurchasePage,

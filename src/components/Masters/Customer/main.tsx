@@ -181,7 +181,7 @@ export default function Main({ initialCustomers }: MainProps) {
         gstNumber: row.gstNumber,
         aadharNumber: row.aadharNumber || "",
         panNumber: row.panNumber || "",
-        salesmanId: row.salesmanId || "",
+        salesmanId: row.salesmanId.toString()  || "",
         bankName: row.bankName || "",
         bankBranch: row.bankBranch || "",
         accountNumber: row.accountNumber || "",
@@ -308,6 +308,7 @@ export default function Main({ initialCustomers }: MainProps) {
             resetForm();
           } else {
             if ("issues" in result && result.issues) {
+              //@ts-ignore
               result.issues.forEach((issue: any) => {
                 toast.error(`${issue.field}: ${issue.message}`);
               });

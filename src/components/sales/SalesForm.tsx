@@ -46,7 +46,7 @@ export default function SalesForm() {
   const loadCustomers = async () => {
     try {
       const data = await getCustomers();
-      setCustomers(data || []);
+      setCustomers(data as any);
     } catch (err) {
       console.error("Failed to load customers", err);
     }

@@ -136,7 +136,7 @@ export default function BrandGrid({ name, data, onDataChange }: GridProps) {
 
       toast.success("Saved successfully");
 
-      const normalized = result.data.map((item: any) => ({
+      const normalized = result.data!.map((item: any) => ({
         ...item,
         taxIds: item.taxes?.map((t: any) => String(t.taxId)) || [],
       }));

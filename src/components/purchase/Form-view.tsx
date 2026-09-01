@@ -14,7 +14,7 @@ import {
   SelectGroup,
   SelectLabel,
   SelectValue,
-} from "../ui/select.tsx";
+} from "../ui/select";
 import ComboboxSupplier from "./combobox-supplier";
 import {
   Table,
@@ -596,7 +596,7 @@ export default function FormView({
               {/* Tax Type */}
               <div className="space-y-2 col-span-2">
                 <Label className="text-sm font-medium">Tax Type</Label>
-                <Select onValueChange={(value) => setTaxType(value)}>
+                <Select onValueChange={(value) => setTaxType(value as any)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select tax type" />
                   </SelectTrigger>

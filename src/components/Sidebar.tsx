@@ -151,7 +151,7 @@ export default function Sidebar() {
                         title: item.name,
                         path: item.href,
                         unique: item.unique ?? false,
-                      })
+                      } as any)
                     }
                     className="py-1.5 text-xs text-gray-500"
                   />

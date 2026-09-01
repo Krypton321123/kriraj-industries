@@ -116,7 +116,7 @@ export async function createCustomer(input: CustomerInput) {
       return {
         success: false,
         error: "Validation failed",
-        issues: error
+        issues: error.issues
       };
     }
     return {
@@ -165,7 +165,7 @@ export async function updateCustomer(customerCode: string, input: CustomerInput)
       return {
         success: false,
         error: "Validation failed",
-        issues: error,
+        issues: error.issues,
       };
     }
     return {

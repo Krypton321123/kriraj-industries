@@ -165,7 +165,7 @@ const RateTable = ({
       const firstTaxId = updatedColumns[0]?.taxId;
 
       if (!firstTaxId) {
-        setItems(mappedItems);
+        setItems(mappedItems as any);
         return;
       }
 

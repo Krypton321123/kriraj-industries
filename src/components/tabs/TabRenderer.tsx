@@ -9,12 +9,9 @@ export default function TabRenderer() {
 
   const getComponent = (path: string) => {
     if (pageRegistry[path]) return pageRegistry[path];
-
-    // dynamic match
     if (path.startsWith("/home/")) {
       return pageRegistry["/home/[master]"];
     }
-
     return null;
   };
 
@@ -22,6 +19,7 @@ export default function TabRenderer() {
     <>
       {tabs.map((tab) => {
         const Component = getComponent(tab.path);
+        if (!Component) return null;
 
         return (
           <div
