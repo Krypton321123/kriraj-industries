@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import {
   getExpenses,
   getGeneralLedgers,
+  getIncomes,
   getLedgerParents,
 } from "@/actions/ledgers/actions";
 import { LedgerTable } from "@/components/ledgers/ledger-table";
@@ -12,26 +13,30 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ParentTable } from "@/components/ledgers/parents-table";
 import { ExpenseTable } from "@/components/ledgers/expenses-table";
+import { IncomeTable } from "@/components/ledgers/income-table";
 
 export default function LedgersPage() {
   const [ledgers, setLedgers] = useState<any[]>([]);
   const [parents, setParents] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [incomes, setIncomes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ledgersResult, parentsResult, expensesResult] =
+        const [ledgersResult, parentsResult, expensesResult, incomesResult] =
           await Promise.all([
             getGeneralLedgers(),
             getLedgerParents(),
             getExpenses(),
+            getIncomes(),
           ]);
 
         setLedgers(ledgersResult.success ? ledgersResult.data! : []);
         setParents(parentsResult.success ? parentsResult.data! : []);
         setExpenses(expensesResult.success ? expensesResult.data! : []);
+        setIncomes(incomesResult.success ? incomesResult.data! : []);
       } catch (err) {
         console.error("Error fetching ledgers:", err);
       } finally {
@@ -50,6 +55,7 @@ export default function LedgersPage() {
           setLedgers={setLedgers}
           parents={parents}
           setParents={setParents}
+          setIncomes={setIncomes}
         />
 
         {loading ? (
@@ -67,7 +73,7 @@ export default function LedgersPage() {
             </Card>
 
             {/* Parent Groups + Expenses — side by side */}
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="shadow-sm border-0">
                 <h2 className="px-6 pt-5 pb-3 text-base font-semibold text-gray-800 border-b border-gray-100">
                   Parent Groups
@@ -83,6 +89,16 @@ export default function LedgersPage() {
                   expenses={expenses}
                   parents={parents}
                   setExpenses={setExpenses}
+                />
+              </Card>
+              <Card className="shadow-sm border-0">
+                <h2 className="px-6 pt-5 pb-3 text-base font-semibold text-gray-800 border-b border-gray-100">
+                  Incomes
+                </h2>
+                <IncomeTable
+                  incomes={incomes}
+                  parents={parents}
+                  setIncomes={setIncomes}
                 />
               </Card>
             </div>

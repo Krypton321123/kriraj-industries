@@ -8,5 +8,6 @@ export const tabConfig = {
   "/home/tax": { title: "Tax", allowMultiple: false },
   "/home/[master]": {title: "Master", allowMultiple: false}, 
   "/home/sales": {title: "Sales", allowMultiple: false}, 
-  "/home/payment": {title: "Payment", allowMultiple: false} 
+  "/home/payment": {title: "Payment", allowMultiple: false}, 
+  "/home/receiving": {title: "Receiving", allowMultiple: false}, 
 };

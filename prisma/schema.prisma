@@ -177,6 +177,9 @@ model generalLedgers {
 
   paymentLedgers trnPayment[]     @relation("PaymentLedger")
   receiptLedgers trnPaymentItem[] @relation("ReceiptLedger")
+
+  receivingPaymentLedgers trnReceiving[]     @relation("ReceivingPaymentLedger")
+  receivingReceiptLedgers trnReceivingItem[] @relation("ReceivingReceiptLedger")
 }
 
 model ledgerParent {
@@ -275,15 +278,15 @@ model mstExpenses {
 }
 
 model mstIncome {
-  id            String       @id @default(cuid())
-  incomeCode    String
-  incomeName    String
-  parentGroupId Int
-  parentGroup   ledgerParent @relation(fields: [parentGroupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  paymentItems trnPaymentItem[]
+  id             String             @id @default(cuid())
+  incomeCode     String
+  incomeName     String
+  parentGroupId  Int
+  parentGroup    ledgerParent       @relation(fields: [parentGroupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  paymentItems   trnPaymentItem[]
+  receivingItems trnReceivingItem[]
 }
 
 model RateListItem {
@@ -441,4 +444,40 @@ model trnPaymentItem {
   createdAt   DateTime   @default(now())
   mstIncome   mstIncome? @relation(fields: [mstIncomeId], references: [id])
   mstIncomeId String?
+}
+
+model trnReceiving {
+  id            Int      @id @default(autoincrement())
+  receivingCode String   @unique
+  receivingDate DateTime
+
+  paymentMode     String // "CASH" | "BANK"
+  paymentLedgerId Int
+  paymentLedger   generalLedgers @relation("ReceivingPaymentLedger", fields: [paymentLedgerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  totalAmount Decimal @db.Decimal(18, 2)
+  remarks     String?
+  createdBy   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items trnReceivingItem[]
+}
+
+model trnReceivingItem {
+  id          Int          @id @default(autoincrement())
+  receivingId Int
+  receiving   trnReceiving @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+
+  incomeId String
+  income   mstIncome @relation(fields: [incomeId], references: [id])
+
+  receiptLedgerId Int
+  receiptLedger   generalLedgers @relation("ReceivingReceiptLedger", fields: [receiptLedgerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  amount  Decimal @db.Decimal(18, 2)
+  remarks String?
+
+  createdAt DateTime @default(now())
 }

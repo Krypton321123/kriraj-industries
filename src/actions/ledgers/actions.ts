@@ -301,3 +301,81 @@ export async function deleteExpense(id: string) {
   }
 }
  
+async function generateNewIncomeCode() {
+  const last = await prisma.mstIncome.findFirst({
+    select: { incomeCode: true },
+    orderBy: { id: "desc" },
+  });
+
+  if (!last) return "IN0001";
+
+  const num = parseInt(last.incomeCode.replace("IN", "")) || 0;
+  return `IN${String(num + 1).padStart(4, "0")}`;
+}
+
+export async function createIncome(data: {
+  incomeName: string;
+  parentGroupId: number;
+}) {
+  try {
+    const incomeCode = await generateNewIncomeCode();
+    const income = await prisma.mstIncome.create({
+      data: {
+        incomeCode,
+        incomeName: data.incomeName,
+        parentGroupId: data.parentGroupId,
+      },
+      include: { parentGroup: true },
+    });
+    revalidatePath("/ledgers");
+    return { success: true, data: income };
+  } catch (error) {
+    console.error("Error creating income:", error);
+    return { success: false, error: "Failed to create income" };
+  }
+}
+
+export async function getIncomes() {
+  try {
+    const incomes = await prisma.mstIncome.findMany({
+      include: { parentGroup: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: incomes };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to fetch incomes" };
+  }
+}
+
+export async function updateIncome(
+  id: string,
+  data: { incomeName: string; parentGroupId: number }
+) {
+  try {
+    const income = await prisma.mstIncome.update({
+      where: { id },
+      data: {
+        incomeName: data.incomeName,
+        parentGroupId: data.parentGroupId,
+      },
+      include: { parentGroup: true },
+    });
+    revalidatePath("/ledgers");
+    return { success: true, data: income };
+  } catch (error) {
+    console.error("Error updating income:", error);
+    return { success: false, error: "Failed to update income" };
+  }
+}
+
+export async function deleteIncome(id: string) {
+  try {
+    await prisma.mstIncome.delete({ where: { id } });
+    revalidatePath("/ledgers");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting income:", error);
+    return { success: false, error: "Failed to delete income" };
+  }
+}

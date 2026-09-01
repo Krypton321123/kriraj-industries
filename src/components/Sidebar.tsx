@@ -57,6 +57,7 @@ export default function Sidebar() {
     { name: "Purchase", icon: <TbBulb />, href: "/home/purchase" },
     { name: "Sales", icon: <TbBulb />, href: "/home/sales" },
     { name: "Payments", icon: <TbBulb />, href: "/home/payment" },
+    { name: "Receiving", icon: <TbBulb />, href: "/home/receiving" },
   ];
 
   const aboutItems = [

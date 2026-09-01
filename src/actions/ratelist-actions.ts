@@ -115,7 +115,9 @@ export const getRateListByCustomer = async (customerId: number) => {
       labour: Number(item.labour),
       packing: Number(item.packing),
       margin: Number(item.margin),
-      wastage: Number(item.wastage), 
+      wastage: Number(item.wastage),
+      total: Number(item.total),
+      nettRate: Number(item.nettRate),
 
       values: item.values.map((val) => ({
         ...val,

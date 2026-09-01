@@ -7,24 +7,28 @@ import { CreateLedgerDialog } from "./create-ledger-dialog";
 import { CreateParentDialog } from "./create-parent-dialog";
 import { PlusCircle, Search, FolderPlus } from "lucide-react";
 import { CreateExpenseDialog } from "./create-expense-dialog";
+import { CreateIncomeDialog } from "./create-income-dialog";
 
 interface LedgerHeaderProps {
   parents: any[];
   setParents: any;
   setLedgers: any;
-  setExpenses: any; 
+  setExpenses: any;
+  setIncomes: any;
 }
 
 export function LedgerHeader({
   parents,
   setParents,
   setLedgers,
-  setExpenses
+  setExpenses,
+  setIncomes,
 }: LedgerHeaderProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateLedgerOpen, setIsCreateLedgerOpen] = useState(false);
   const [isCreateParentOpen, setIsCreateParentOpen] = useState(false);
   const [isCreateExpenseOpen, setIsCreateExpenseOpen] = useState(false);
+  const [isCreateIncomeOpen, setIsCreateIncomeOpen] = useState(false);
 
   return (
     <>
@@ -64,6 +68,14 @@ export function LedgerHeader({
             <PlusCircle className="h-4 w-4 mr-2" />
             Expense
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCreateIncomeOpen(true)}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Income
+          </Button>
         </div>
       </div>
 
@@ -94,6 +106,12 @@ export function LedgerHeader({
         onOpenChange={setIsCreateExpenseOpen}
         parents={parents}
         setExpenses={setExpenses}
+      />
+      <CreateIncomeDialog
+        open={isCreateIncomeOpen}
+        onOpenChange={setIsCreateIncomeOpen}
+        parents={parents}
+        setIncomes={setIncomes}
       />
     </>
   );

@@ -8,6 +8,7 @@ import SalesmanPage from "@/app/(main)/home/salesman/page";
 import SupplierPage from "@/app/(main)/home/supplier/page";
 import TaxMasterPage from "@/app/(main)/home/tax/page";
 import Payments from "@/app/(main)/home/payment/page";
+import ReceivingPage from "@/app/(main)/home/receiving/page";
 
 
 export const pageRegistry = {
@@ -20,5 +21,6 @@ export const pageRegistry = {
   "/home/tax": TaxMasterPage, 
   "/home/[master]": Page, 
   "/home/sales": SalesPage, 
-  "/home/payment": Payments
+  "/home/payment": Payments,
+  "/home/receiving": ReceivingPage,
 };
