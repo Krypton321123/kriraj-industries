@@ -2,21 +2,53 @@
 
 import { prisma } from "@/util/prisma";
 
-const TAX_CONFIG: Record<string, any> = {
-  RAWMAT: ["brandId", "categoryId", "typeId", "qualityId"],
-  STICKER: ["brandId", "categoryId"],
-  GLASS: ["brandId"],
+type TaxKind = "RAWMAT" | "STICKER" | "GLASS";
+
+// matchOn         -> which fields of the row must match a purchase item
+// onlyForCategory -> the column only applies to rows of this category name,
+//                    every other row gets 0
+const TAX_CONFIG: Record<
+  TaxKind,
+  { matchOn: string[]; onlyForCategory?: string }
+> = {
+  RAWMAT: { matchOn: ["brandId", "categoryId", "typeId", "qualityId"] },
+  STICKER: { matchOn: ["brandId", "categoryId"] },
+  GLASS: { matchOn: ["brandId"], onlyForCategory: "visor" },
 };
 
-export const rateListFirstSelection = async (taxId: string) => {
+const resolveTaxKind = async (taxId: string): Promise<TaxKind> => {
   const tax = await prisma.comTaxTable.findUnique({
     where: { taxId },
     select: { comName: true },
   });
 
-  const taxName = tax?.comName || "RAWMAT";
+  const name = (tax?.comName || "").toUpperCase();
 
-  const groupByFields = TAX_CONFIG[taxName] || TAX_CONFIG["RAWMAT"];
+  if (name.includes("GLASS")) return "GLASS";
+  if (name.includes("STICKER")) return "STICKER";
+  return "RAWMAT";
+};
+
+// Name comparison is done in JS (trimmed, case-insensitive) because Prisma's
+// `mode: "insensitive"` is not available on SQL Server.
+const getCategoryIdsByName = async (name: string): Promise<Set<number>> => {
+  const categories = await prisma.mstCategory.findMany({
+    select: { id: true, categoryName: true },
+  });
+
+  const target = name.trim().toLowerCase();
+
+  return new Set(
+    categories
+      .filter((c) => c.categoryName.trim().toLowerCase() === target)
+      .map((c) => c.id),
+  );
+};
+
+export const rateListFirstSelection = async (taxId: string) => {
+  const kind = await resolveTaxKind(taxId);
+
+  const groupByFields: any = TAX_CONFIG[kind].matchOn;
 
   console.log(groupByFields);
 
@@ -45,40 +77,60 @@ export const rateListSecondSelection = async (
   taxId: string,
   combinations: any[],
 ) => {
-  const tax = await prisma.comTaxTable.findUnique({
-    where: { taxId },
-    select: { comName: true },
-  });
+  const kind = await resolveTaxKind(taxId);
+  const { matchOn, onlyForCategory } = TAX_CONFIG[kind];
 
-  const taxName = tax?.comName || "RAWMAT";
+  const allowedCategoryIds = onlyForCategory
+    ? await getCategoryIdsByName(onlyForCategory)
+    : null;
 
-  const fields = TAX_CONFIG[taxName] || TAX_CONFIG["RAWMAT"];
+  // Rows that share the same match fields get the same rate, so each distinct
+  // key is queried once (sticker: brand + category, glass: brand).
+  const rateCache = new Map<string, Promise<number>>();
 
-  const results = await Promise.all(
-    combinations.map(async (combo) => {
+  const fetchRate = (combo: any): Promise<number> => {
+    const key = matchOn.map((f) => combo[f]).join("-");
+
+    let pending = rateCache.get(key);
+
+    if (!pending) {
       const whereClause: any = {
         purchase: {
           purchaseCategory: taxId,
         },
       };
 
-      fields.forEach((field: string) => {
+      matchOn.forEach((field) => {
         whereClause[field] = combo[field];
       });
 
-      const res = await prisma.trnPurchaseItem.aggregate({
-        _max: { purchaseRate: true },
-        where: whereClause,
-      });
+      pending = prisma.trnPurchaseItem
+        .aggregate({
+          _max: { purchaseRate: true },
+          where: whereClause,
+        })
+        .then((res) => Number(res._max.purchaseRate || 0));
+
+      rateCache.set(key, pending);
+    }
+
+    return pending;
+  };
+
+  return Promise.all(
+    combinations.map(async (combo) => {
+      // Column doesn't apply to this row (e.g. glass on a non-visor category)
+      if (allowedCategoryIds && !allowedCategoryIds.has(combo.categoryId)) {
+        return { ...combo, purchaseRate: 0, applicable: false };
+      }
 
       return {
         ...combo,
-        purchaseRate: Number(res._max.purchaseRate || 0),
+        purchaseRate: await fetchRate(combo),
+        applicable: true,
       };
     }),
   );
-
-  return results;
 };
 
 export const getRateListByCustomer = async (customerId: number) => {

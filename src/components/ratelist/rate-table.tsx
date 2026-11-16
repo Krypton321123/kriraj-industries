@@ -382,7 +382,12 @@ const RateTable = ({
           );
 
           const newValues = [...item.values];
-          newValues[colIndex] = match?.purchaseRate || newValues[colIndex] || 0;
+          // applicable === false -> the rule says this column is 0 for this row
+          // (e.g. glass on a non-visor category), so don't keep an old saved value
+          newValues[colIndex] =
+            match?.applicable === false
+              ? 0
+              : match?.purchaseRate || newValues[colIndex] || 0;
 
           return {
             ...item,
