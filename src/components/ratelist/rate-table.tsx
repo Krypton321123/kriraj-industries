@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableHeader,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Trash, Plus } from "lucide-react";
+import { Trash, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   getRateListByCustomer,
   rateListFirstSelection,
@@ -47,6 +47,61 @@ const TaxSelectHeader = ({ taxes, value, onChange }: TaxSelectHeaderProps) => (
       </SelectContent>
     </Select>
   </div>
+);
+
+// ---------------------------------------------------------------------------
+// Sorting / searching helpers
+// ---------------------------------------------------------------------------
+
+type SortKey = "brand" | "category" | "type" | "quality";
+type SortDir = "asc" | "desc";
+
+// Order used for tie-breaking, so rows that share a value stay grouped
+// (e.g. sort by Category -> inside each category: Brand, then Type, then Quality)
+const SORT_KEYS: SortKey[] = ["brand", "category", "type", "quality"];
+
+const COLUMN_LABELS: Record<SortKey, string> = {
+  brand: "Brand",
+  category: "Category",
+  type: "Type",
+  quality: "Quality",
+};
+
+// numeric: true -> "Grade 2" sorts before "Grade 10"; case-insensitive
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+interface SortableHeadProps {
+  label: string;
+  active: boolean;
+  dir?: SortDir;
+  onClick: () => void;
+}
+
+const SortableHead = ({ label, active, dir, onClick }: SortableHeadProps) => (
+  <TableHead
+    className="font-semibold min-w-[120px] text-md"
+    aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+  >
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1 cursor-pointer select-none hover:opacity-70"
+    >
+      {label}
+      {active ? (
+        dir === "asc" ? (
+          <ArrowUp className="h-4 w-4" />
+        ) : (
+          <ArrowDown className="h-4 w-4" />
+        )
+      ) : (
+        <ArrowUpDown className="h-4 w-4 opacity-40" />
+      )}
+    </button>
+  </TableHead>
 );
 
 interface rateTableItem {
@@ -102,16 +157,109 @@ const RateTable = ({
     { key: "paint", taxId: "" },
   ]);
 
-  const brandMap = Object.fromEntries(
-    itemData.brands.map((b: any) => [b.id, b]),
+  // null = original order
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(
+    null,
   );
-  const categoryMap = Object.fromEntries(
-    itemData.category.map((c: any) => [c.id, c]),
+  const [filters, setFilters] = useState<Record<SortKey, string>>({
+    brand: "",
+    category: "",
+    type: "",
+    quality: "",
+  });
+
+  const brandMap = useMemo(
+    () => Object.fromEntries(itemData.brands.map((b: any) => [b.id, b])),
+    [itemData.brands],
   );
-  const typeMap = Object.fromEntries(itemData.types.map((t: any) => [t.id, t]));
-  const qualityMap = Object.fromEntries(
-    itemData.quality.map((q: any) => [q.id, q]),
+  const categoryMap = useMemo(
+    () => Object.fromEntries(itemData.category.map((c: any) => [c.id, c])),
+    [itemData.category],
   );
+  const typeMap = useMemo(
+    () => Object.fromEntries(itemData.types.map((t: any) => [t.id, t])),
+    [itemData.types],
+  );
+  const qualityMap = useMemo(
+    () => Object.fromEntries(itemData.quality.map((q: any) => [q.id, q])),
+    [itemData.quality],
+  );
+
+  // Rows actually rendered. `items` stays untouched (every edit/delete is by
+  // id), so sorting and filtering only change what is displayed.
+  const displayItems = useMemo(() => {
+    const label = (item: rateTableItem, key: SortKey): string => {
+      switch (key) {
+        case "brand":
+          return brandMap[item.brand]?.brandName || "";
+        case "category":
+          return categoryMap[item.category]?.categoryName || "";
+        case "type":
+          return typeMap[item.type]?.typeName || "";
+        case "quality":
+          return qualityMap[item.quality]?.qualityName || "";
+      }
+    };
+
+    const needles = SORT_KEYS.map(
+      (k) => [k, filters[k].trim().toLowerCase()] as const,
+    ).filter(([, needle]) => needle !== "");
+
+    // Rows that are still blank (just added with "+") are always shown,
+    // otherwise they would vanish the moment a search is active.
+    const isBlankRow = (item: rateTableItem) =>
+      !item.brand && !item.category && !item.type && !item.quality;
+
+    let rows = items.filter(
+      (item) =>
+        isBlankRow(item) ||
+        needles.every(([k, needle]) =>
+          label(item, k).toLowerCase().includes(needle),
+        ),
+    );
+
+    if (sort) {
+      const keyOrder = [sort.key, ...SORT_KEYS.filter((k) => k !== sort.key)];
+
+      // Array.prototype.sort is stable, so equal rows keep their original order
+      rows = [...rows].sort((a, b) => {
+        for (const k of keyOrder) {
+          const av = label(a, k);
+          const bv = label(b, k);
+          if (av === bv) continue;
+
+          // empty values always go to the bottom, whatever the direction
+          if (!av) return 1;
+          if (!bv) return -1;
+
+          const c = collator.compare(av, bv);
+          if (c === 0) continue;
+
+          // direction only applies to the column being sorted;
+          // tie-breakers are always A -> Z
+          return k === sort.key && sort.dir === "desc" ? -c : c;
+        }
+        return 0;
+      });
+    }
+
+    return rows;
+  }, [items, sort, filters, brandMap, categoryMap, typeMap, qualityMap]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null; // third click -> back to original order
+    });
+
+  const hasActiveView =
+    sort !== null || SORT_KEYS.some((k) => filters[k] !== "");
+
+  const resetView = () => {
+    setSort(null);
+    setFilters({ brand: "", category: "", type: "", quality: "" });
+  };
 
   useEffect(() => {
     const loadAndSync = async () => {
@@ -259,28 +407,28 @@ const RateTable = ({
   }, [customerId]);
 
   const addEmptyItem = () => {
-  setItems((prev) => [
-    ...prev,
-    {
-      id: prev.length ? prev[prev.length - 1].id + 1 : 0,
-      brand: 0,
-      category: 0,
-      type: 0,
-      quality: 0,
+    setItems((prev) => [
+      ...prev,
+      {
+        id: prev.length ? prev[prev.length - 1].id + 1 : 0,
+        brand: 0,
+        category: 0,
+        type: 0,
+        quality: 0,
 
-      values: columns.map(() => 0), // 👈 this is what was missing
+        values: columns.map(() => 0), // 👈 this is what was missing
 
-      freight: 0,
-      paint: 0,
-      labour: 0,
-      packing: 0,
-      margin: 0,
-      wastage: 0,
-      total: 0,
-      nettRate: 0,
-    },
-  ]);
-};
+        freight: 0,
+        paint: 0,
+        labour: 0,
+        packing: 0,
+        margin: 0,
+        wastage: 0,
+        total: 0,
+        nettRate: 0,
+      },
+    ]);
+  };
 
   const handleTaxChange = async (colIndex: number, taxId: string) => {
     // update column tax
@@ -485,18 +633,16 @@ const RateTable = ({
       <Table>
         <TableHeader>
           <TableRow className="bg-yellow-100 hover:bg-yellow-200">
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Brand
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Category
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Type
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Quality
-            </TableHead>
+            {/* Click to sort: A→Z, then Z→A, then back to original order */}
+            {SORT_KEYS.map((key) => (
+              <SortableHead
+                key={key}
+                label={COLUMN_LABELS[key]}
+                active={sort?.key === key}
+                dir={sort?.key === key ? sort.dir : undefined}
+                onClick={() => toggleSort(key)}
+              />
+            ))}
             {columns.map((col, index) => (
               <TableHead className="font-semibold text-md" key={col.key}>
                 <TaxSelectHeader
@@ -534,9 +680,43 @@ const RateTable = ({
               Actions
             </TableHead>
           </TableRow>
+
+          {/* Search row: one box per column, all active filters combine (AND) */}
+          <TableRow className="bg-yellow-50 hover:bg-yellow-50">
+            {SORT_KEYS.map((key) => (
+              <TableHead key={key} className="py-2">
+                <Input
+                  value={filters[key]}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
+                  placeholder={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
+                  aria-label={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
+                  className="h-8 bg-white text-sm font-normal"
+                />
+              </TableHead>
+            ))}
+            <TableHead
+              colSpan={columns.length + 8}
+              className="text-sm font-normal text-muted-foreground"
+            >
+              Showing {displayItems.length} of {items.length} rows
+            </TableHead>
+            <TableHead className="py-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetView}
+                disabled={!hasActiveView}
+                className="cursor-pointer"
+              >
+                Reset
+              </Button>
+            </TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
+          {displayItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="w-40">
                 <Input
@@ -670,6 +850,18 @@ const RateTable = ({
               </TableCell>
             </TableRow>
           ))}
+
+          {items.length > 0 && displayItems.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length + 13}
+                className="py-6 text-center text-sm text-muted-foreground"
+              >
+                No rows match your search.
+              </TableCell>
+            </TableRow>
+          )}
+
           <TableRow>
             {Array(17)
               .fill(0)
