@@ -259,30 +259,28 @@ const RateTable = ({
   }, [customerId]);
 
   const addEmptyItem = () => {
-    setItems((prev: any) => {
-      return [
-        ...prev,
-        {
-          id: prev.length != 0 ? prev[prev.length - 1].id + 1 : 0,
-          brand: "",
-          category: "",
-          type: "",
-          quality: "",
-          rawmat: "",
-          sticker: "",
-          glassCost: 0,
-          freight: 0,
-          paint: 0,
-          labour: 0,
-          packing: 0,
-          margin: 0,
-          wastage: 0,
-          total: 0,
-          nettRate: 0,
-        },
-      ];
-    });
-  };
+  setItems((prev) => [
+    ...prev,
+    {
+      id: prev.length ? prev[prev.length - 1].id + 1 : 0,
+      brand: 0,
+      category: 0,
+      type: 0,
+      quality: 0,
+
+      values: columns.map(() => 0), // 👈 this is what was missing
+
+      freight: 0,
+      paint: 0,
+      labour: 0,
+      packing: 0,
+      margin: 0,
+      wastage: 0,
+      total: 0,
+      nettRate: 0,
+    },
+  ]);
+};
 
   const handleTaxChange = async (colIndex: number, taxId: string) => {
     // update column tax
