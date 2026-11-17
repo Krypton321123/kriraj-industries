@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Table,
   TableHeader,
   TableBody,
   TableHead,
@@ -33,9 +32,9 @@ interface TaxSelectHeaderProps {
 }
 
 const TaxSelectHeader = ({ taxes, value, onChange }: TaxSelectHeaderProps) => (
-  <div className="flex flex-col gap-1 min-w-[100px]">
+  <div className="flex flex-col gap-1 w-full min-w-0">
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-7 text-xs font-normal bg-yellow-50 border-yellow-300">
+      <SelectTrigger className="h-7 w-full px-2 text-xs font-normal bg-yellow-50 border-yellow-300">
         <SelectValue placeholder="Select tax" />
       </SelectTrigger>
       <SelectContent>
@@ -73,16 +72,38 @@ const collator = new Intl.Collator(undefined, {
   sensitivity: "base",
 });
 
+// ---------------------------------------------------------------------------
+// Column layout
+// The 4 row-key columns + the tax columns are frozen (sticky); the rest scroll.
+// Widths are in px - lower them if the frozen part takes too much of the screen.
+// ---------------------------------------------------------------------------
+const ROW_KEY_COL_WIDTH = 104; // brand / category / type / quality
+const TAX_COL_WIDTH = 104; // the selectable rawmat / sticker / glass ... columns
+const NUMBER_COL_WIDTH = 112; // freight ... nett rate
+const ACTIONS_COL_WIDTH = 80;
+const SCROLL_NUMBER_COLS = 8; // Freight, Paint, Labour, Packing, Margin, Wastage, Total, Nett Rate
+const FROZEN_BODY_CELL = "bg-white group-hover:bg-gray-50";
+
 interface SortableHeadProps {
   label: string;
   active: boolean;
   dir?: SortDir;
   onClick: () => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-const SortableHead = ({ label, active, dir, onClick }: SortableHeadProps) => (
+const SortableHead = ({
+  label,
+  active,
+  dir,
+  onClick,
+  className = "",
+  style,
+}: SortableHeadProps) => (
   <TableHead
-    className="font-semibold min-w-[120px] text-md"
+    className={`font-semibold text-md ${className}`}
+    style={style}
     aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
   >
     <button
@@ -260,6 +281,45 @@ const RateTable = ({
     setSort(null);
     setFilters({ brand: "", category: "", type: "", quality: "" });
   };
+
+  // ---- Horizontal scrolling: scrollbar on top + bottom, kept in sync -------
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+
+  // Only write when the other side differs, so the two handlers can't loop.
+  const syncScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
+    if (from && to && Math.abs(from.scrollLeft - to.scrollLeft) > 0.5) {
+      to.scrollLeft = from.scrollLeft;
+    }
+  };
+  const onTopScroll = () => syncScroll(topScrollRef.current, bodyScrollRef.current);
+  const onBodyScroll = () => syncScroll(bodyScrollRef.current, topScrollRef.current);
+
+  // ---- Frozen columns: 4 row-key columns + one per tax column --------------
+  const frozenWidths = [
+    ...SORT_KEYS.map(() => ROW_KEY_COL_WIDTH),
+    ...columns.map(() => TAX_COL_WIDTH),
+  ];
+  const frozenCount = frozenWidths.length;
+  const frozenLefts = frozenWidths.map((_, i) =>
+    frozenWidths.slice(0, i).reduce((a, b) => a + b, 0),
+  );
+  const totalWidth =
+    frozenWidths.reduce((a, b) => a + b, 0) +
+    SCROLL_NUMBER_COLS * NUMBER_COL_WIDTH +
+    ACTIONS_COL_WIDTH;
+
+  // `span` is for cells that cover several frozen columns (colSpan)
+  const frozenStyle = (index: number, span = 1): React.CSSProperties => ({
+    position: "sticky",
+    left: frozenLefts[index],
+    zIndex: 10,
+    // divider after the last frozen column (a shadow, because borders don't
+    // travel with sticky cells)
+    ...(index + span === frozenCount
+      ? { boxShadow: "inset -1px 0 0 #d1d5db, 6px 0 8px -6px rgba(0,0,0,0.25)" }
+      : {}),
+  });
 
   useEffect(() => {
     const loadAndSync = async () => {
@@ -553,7 +613,7 @@ const RateTable = ({
   };
 
   return (
-    <div className="w-full rounded-lg shadow-md shadow-gray-200 bg-white border-gray-200 border p-2">
+    <div className="w-full min-w-0 rounded-lg shadow-md shadow-gray-200 bg-white border-gray-200 border p-2">
       <div className="flex gap-6 py-4 items-end">
         {/* Brand Select */}
         <div className="flex flex-col gap-1">
@@ -635,256 +695,287 @@ const RateTable = ({
           />
         </div>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-yellow-100 hover:bg-yellow-200">
-            {/* Click to sort: A→Z, then Z→A, then back to original order */}
-            {SORT_KEYS.map((key) => (
-              <SortableHead
-                key={key}
-                label={COLUMN_LABELS[key]}
-                active={sort?.key === key}
-                dir={sort?.key === key ? sort.dir : undefined}
-                onClick={() => toggleSort(key)}
-              />
+      {/* Mirror of the bottom scrollbar, so you can scroll without going to the end of the table */}
+      <div
+        ref={topScrollRef}
+        onScroll={onTopScroll}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="w-full overflow-x-auto overflow-y-hidden"
+      >
+        <div style={{ width: totalWidth, height: 1 }} />
+      </div>
+
+      <div
+        ref={bodyScrollRef}
+        onScroll={onBodyScroll}
+        className="w-full overflow-x-auto"
+      >
+        {/*
+          Fixed layout + exact column widths (colgroup) so the sticky `left`
+          offsets always match the real column positions. Borders sit on the
+          cells (border-separate) because collapsed borders don't stay attached
+          to sticky cells.
+        */}
+        <table
+          className="caption-bottom border-separate border-spacing-0 text-sm [&_th]:border-b [&_th]:border-gray-200 [&_td]:border-b [&_td]:border-gray-200"
+          style={{ tableLayout: "fixed", width: totalWidth }}
+        >
+          <colgroup>
+            {frozenWidths.map((w, i) => (
+              <col key={`frozen-${i}`} style={{ width: w }} />
             ))}
-            {columns.map((col, index) => (
-              <TableHead className="font-semibold text-md" key={col.key}>
-                <TaxSelectHeader
-                  taxes={taxes}
-                  value={col.taxId}
-                  onChange={(val) => handleTaxChange(index, val)}
-                />
-              </TableHead>
+            {Array.from({ length: SCROLL_NUMBER_COLS }).map((_, i) => (
+              <col key={`number-${i}`} style={{ width: NUMBER_COL_WIDTH }} />
             ))}
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Freight
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Paint
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Labour
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Packing
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Margin
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Wastage
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Total
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Nett Rate
-            </TableHead>
-            <TableHead className="font-semibold min-w-[120px] text-md">
-              Actions
-            </TableHead>
-          </TableRow>
-
-          {/* Search row: one box per column, all active filters combine (AND) */}
-          <TableRow className="bg-yellow-50 hover:bg-yellow-50">
-            {SORT_KEYS.map((key) => (
-              <TableHead key={key} className="py-2">
-                <Input
-                  value={filters[key]}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, [key]: e.target.value }))
-                  }
-                  placeholder={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
-                  aria-label={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
-                  className="h-8 bg-white text-sm font-normal"
+            <col style={{ width: ACTIONS_COL_WIDTH }} />
+          </colgroup>
+          <TableHeader>
+            <TableRow className="bg-yellow-100 hover:bg-yellow-100">
+              {/* Click to sort: A→Z, then Z→A, then back to original order */}
+              {SORT_KEYS.map((key, i) => (
+                <SortableHead
+                  key={key}
+                  label={COLUMN_LABELS[key]}
+                  active={sort?.key === key}
+                  dir={sort?.key === key ? sort.dir : undefined}
+                  onClick={() => toggleSort(key)}
+                  className="bg-yellow-100"
+                  style={frozenStyle(i)}
                 />
-              </TableHead>
-            ))}
-            <TableHead
-              colSpan={columns.length + 8}
-              className="text-sm font-normal text-muted-foreground"
-            >
-              Showing {displayItems.length} of {items.length} rows
-            </TableHead>
-            <TableHead className="py-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetView}
-                disabled={!hasActiveView}
-                className="cursor-pointer"
-              >
-                Reset
-              </Button>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {displayItems.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="w-40">
-                <Input
-                  readOnly
-                  value={brandMap[item.brand]?.brandName || ""}
-                  disabled
-                />
-              </TableCell>
-              <TableCell className="w-40">
-                <Input
-                  readOnly
-                  value={categoryMap[item.category]?.categoryName || ""}
-                  disabled
-                />
-              </TableCell>
-              <TableCell className="w-40">
-                <Input
-                  readOnly
-                  value={typeMap[item.type]?.typeName || ""}
-                  disabled
-                />
-              </TableCell>
-              <TableCell className="w-40">
-                <Input
-                  readOnly
-                  value={qualityMap[item.quality]?.qualityName || ""}
-                  disabled
-                />
-              </TableCell>
-              {columns.map((col, colIndex) => (
-                <TableCell className="w-32" key={colIndex}>
-                  <Input
-                    type="number"
-                    value={item.values[colIndex] || 0}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-
-                      setItems((prev) =>
-                        prev.map((i) => {
-                          if (i.id !== item.id) return i;
-
-                          const newValues = [...i.values];
-                          newValues[colIndex] = val;
-
-                          const updated = { ...i, values: newValues };
-
-                          return {
-                            ...updated,
-                            ...calculateRow(updated),
-                          };
-                        }),
-                      );
-                    }}
-                  />
-                </TableCell>
               ))}
+              {columns.map((col, index) => (
+                <TableHead
+                  className="bg-yellow-100 font-semibold text-md"
+                  key={col.key}
+                  style={frozenStyle(SORT_KEYS.length + index)}
+                >
+                  <TaxSelectHeader
+                    taxes={taxes}
+                    value={col.taxId}
+                    onChange={(val) => handleTaxChange(index, val)}
+                  />
+                </TableHead>
+              ))}
+              <TableHead className="font-semibold text-md">Freight</TableHead>
+              <TableHead className="font-semibold text-md">Paint</TableHead>
+              <TableHead className="font-semibold text-md">Labour</TableHead>
+              <TableHead className="font-semibold text-md">Packing</TableHead>
+              <TableHead className="font-semibold text-md">Margin</TableHead>
+              <TableHead className="font-semibold text-md">Wastage</TableHead>
+              <TableHead className="font-semibold text-md">Total</TableHead>
+              <TableHead className="font-semibold text-md">Nett Rate</TableHead>
+              <TableHead className="font-semibold text-md">Actions</TableHead>
+            </TableRow>
 
-              <TableCell className="w-32">
-                <Input
-                  value={item.freight}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "freight", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
+            {/* Search row: one box per column, all active filters combine (AND) */}
+            <TableRow className="bg-yellow-50 hover:bg-yellow-50">
+              {SORT_KEYS.map((key, i) => (
+                <TableHead
+                  key={key}
+                  className="bg-yellow-50 py-2"
+                  style={frozenStyle(i)}
+                >
+                  <Input
+                    value={filters[key]}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
+                    aria-label={`Search ${COLUMN_LABELS[key].toLowerCase()}`}
+                    className="h-8 bg-white px-2 text-sm font-normal"
+                  />
+                </TableHead>
+              ))}
+              {/* Row count + Reset live in the frozen area so they're always reachable */}
+              <TableHead
+                colSpan={columns.length}
+                className="bg-yellow-50 py-2"
+                style={frozenStyle(SORT_KEYS.length, columns.length)}
+              >
+                <div className="flex items-center justify-between gap-2 text-sm font-normal text-muted-foreground">
+                  <span>
+                    Showing {displayItems.length} of {items.length} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetView}
+                    disabled={!hasActiveView}
+                    className="cursor-pointer"
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </TableHead>
+              <TableHead colSpan={SCROLL_NUMBER_COLS + 1} />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {displayItems.map((item) => {
+              const rowLabels = [
+                brandMap[item.brand]?.brandName || "",
+                categoryMap[item.category]?.categoryName || "",
+                typeMap[item.type]?.typeName || "",
+                qualityMap[item.quality]?.qualityName || "",
+              ];
 
-              <TableCell className="w-32">
-                <Input
-                  value={item.paint}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "paint", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input
-                  value={item.labour}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "labour", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input
-                  value={item.packing}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "packing", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input
-                  value={item.margin}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "margin", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input
-                  value={item.wastage}
-                  type="number"
-                  onChange={(e) => {
-                    updateItem(item.id, "wastage", Number(e.target.value));
-                  }}
-                />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input value={item.total} readOnly />
-              </TableCell>
-              <TableCell className="w-32">
-                <Input value={item.nettRate} readOnly />
-              </TableCell>
+              return (
+                <TableRow key={item.id} className="group hover:bg-gray-50">
+                  {rowLabels.map((text, i) => (
+                    <TableCell
+                      key={i}
+                      className={FROZEN_BODY_CELL}
+                      style={frozenStyle(i)}
+                    >
+                      <Input
+                        readOnly
+                        disabled
+                        value={text}
+                        title={text}
+                        className="px-2"
+                      />
+                    </TableCell>
+                  ))}
+                  {columns.map((col, colIndex) => (
+                    <TableCell
+                      key={colIndex}
+                      className={FROZEN_BODY_CELL}
+                      style={frozenStyle(SORT_KEYS.length + colIndex)}
+                    >
+                      <Input
+                        type="number"
+                        className="px-2"
+                        value={item.values[colIndex] || 0}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+
+                          setItems((prev) =>
+                            prev.map((i) => {
+                              if (i.id !== item.id) return i;
+
+                              const newValues = [...i.values];
+                              newValues[colIndex] = val;
+
+                              const updated = { ...i, values: newValues };
+
+                              return {
+                                ...updated,
+                                ...calculateRow(updated),
+                              };
+                            }),
+                          );
+                        }}
+                      />
+                    </TableCell>
+                  ))}
+
+                  <TableCell>
+                    <Input
+                      value={item.freight}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "freight", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    <Input
+                      value={item.paint}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "paint", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.labour}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "labour", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.packing}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "packing", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.margin}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "margin", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.wastage}
+                      type="number"
+                      onChange={(e) => {
+                        updateItem(item.id, "wastage", Number(e.target.value));
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={item.total} readOnly />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={item.nettRate} readOnly />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="destructive"
+                      className="cursor-pointer hover:opacity-80"
+                      onClick={() =>
+                        setItems((prev) =>
+                          prev.filter((item1) => item1.id !== item.id),
+                        )
+                      }
+                    >
+                      <Trash />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+
+            {items.length > 0 && displayItems.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={frozenCount}
+                  className="bg-white py-6 text-center text-sm text-muted-foreground"
+                  style={frozenStyle(0, frozenCount)}
+                >
+                  No rows match your search.
+                </TableCell>
+                <TableCell colSpan={SCROLL_NUMBER_COLS + 1} />
+              </TableRow>
+            )}
+
+            <TableRow>
+              <TableCell colSpan={frozenCount + SCROLL_NUMBER_COLS} />
               <TableCell>
                 <Button
-                  variant="destructive"
-                  className="cursor-pointer hover:opacity-80"
-                  onClick={() =>
-                    setItems((prev) =>
-                      prev.filter((item1) => item1.id !== item.id),
-                    )
-                  }
+                  variant="outline"
+                  onClick={addEmptyItem}
+                  className="cursor-pointer"
                 >
-                  <Trash />
+                  <Plus />
                 </Button>
               </TableCell>
             </TableRow>
-          ))}
-
-          {items.length > 0 && displayItems.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={columns.length + 13}
-                className="py-6 text-center text-sm text-muted-foreground"
-              >
-                No rows match your search.
-              </TableCell>
-            </TableRow>
-          )}
-
-          <TableRow>
-            {Array(17)
-              .fill(0)
-              .map((_, idx) => (
-                <TableCell key={idx}></TableCell>
-              ))}
-            <TableCell>
-              <Button
-                variant="outline"
-                onClick={addEmptyItem}
-                className="cursor-pointer"
-              >
-                <Plus />
-              </Button>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+          </TableBody>
+        </table>
+      </div>
       <div className="flex justify-end mt-4">
         <Button
           onClick={async () => {

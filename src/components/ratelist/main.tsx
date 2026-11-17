@@ -13,7 +13,7 @@ const Main = ({
   itemData: { brands: any; category: any; types: any; quality: any };
 }) => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>({});
-  console.log("selected customer:", selectedCustomer)
+  console.log("selected customer:", selectedCustomer);
   const [date, setDate] = useState("");
   const [taxes, setTaxes] = useState<any[]>([]);
   console.log(itemData);
@@ -36,12 +36,18 @@ const Main = ({
       <div className="w-[95%] mx-10">
         <SelectForm
           customers={customers}
+          customer={selectedCustomer}
+          date={date}
           setDate={setDate}
           setCustomer={setSelectedCustomer}
         />
       </div>
       <div className="w-[95%] mt-5 flex justify-center items-center">
-        <RateTable itemData={itemData} taxes={taxes} customerId={selectedCustomer.id} />
+        <RateTable
+          itemData={itemData}
+          taxes={taxes}
+          customerId={selectedCustomer.id}
+        />
       </div>
     </div>
   );
